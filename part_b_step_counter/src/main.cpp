@@ -26,37 +26,37 @@ int16_t read16bitRegister(uint8_t regL) {
   return 0;
 }
 
+int steps = 0;
+bool stepDetected = false;
+unsigned long lastStepTime = 0;
+const float threshold = 1.2;
+const int stepCooldown = 300;
+
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);
   delay(100);
 
-  Serial.println("Initializing LSM6DSO...");
-
-  // Accelerometer: 104 Hz, ±2g
   writeRegister(CTRL1_XL, 0x40);
-
   delay(100);
-  Serial.println("Sensor ready. Reading acceleration...");
 }
 
 void loop() {
-  int16_t ax_raw = read16bitRegister(OUTX_L_A);
-  int16_t ay_raw = read16bitRegister(OUTX_L_A + 2);
   int16_t az_raw = read16bitRegister(OUTX_L_A + 4);
+  float az = az_raw * 0.000061;
 
-  float scale = 0.000061; // ±2g scale
-  float ax = ax_raw * scale;
-  float ay = ay_raw * scale;
-  float az = az_raw * scale;
+  unsigned long now = millis();
 
-  Serial.print("X: ");
-  Serial.print(ax, 3);
-  Serial.print(" g | Y: ");
-  Serial.print(ay, 3);
-  Serial.print(" g | Z: ");
-  Serial.print(az, 3);
-  Serial.println(" g");
+  if (az > threshold && !stepDetected && (now - lastStepTime > stepCooldown)) {
+    steps++;
+    stepDetected = true;
+    lastStepTime = now;
+    Serial.printf("Step %d detected | Z: %.2f g\n", steps, az);
+  }
 
-  delay(500);
+  if (az < 1.0) {
+    stepDetected = false;
+  }
+
+  delay(20);
 }
